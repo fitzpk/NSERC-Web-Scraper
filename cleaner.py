@@ -1,143 +1,179 @@
 # -------------------------------------------------------------------
-# PURPOSE: Web scrape NSERC research awards data by competition year
-# by using the database provided on their website.
+# PURPOSE: Clean web scraped data 
 # -------------------------------------------------------------------
 
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import Select
-from selenium.webdriver.firefox.options import Options
-import time
 import pandas as pd
+import requests
+import re
+import numpy as np
+from selenium import webdriver
 
-def collectLinks(year):
 
-    output_path = '/Users/kevin/Desktop/Files/NSERC/Database/NSERCLinks_' +  str(year) + '.xlsx'
-    
+def cleanTXT(string):
+    text = string.replace('<td>','')
+    text = text.replace('<h2>','')
+    text = text.replace('\r\n','')
+    text = text.encode('latin1').decode('utf8')
+    text = text.strip()
+    return text
+
+def extractDetails(year):
+
+    input_path = '/Users/kevin/Desktop/Files/NSERC/Database/NSERCLinks_' +  str(year) + '.xlsx'
+    output_path = '/Users/kevin/Desktop/Files/NSERC/Database/NSERC_SUMMARY_' +  str(year) + '.xlsx'
+
+    data = pd.read_excel(input_path, sheet_name="Award Summary Links", dtype=str)
     writer = pd.ExcelWriter(output_path, engine='xlsxwriter')
-    
-    # --------------------------------------------------------------
-    # ********* START UP CHROME AND GO TO THE NSERC WEBSITE ********
-    driver = webdriver.Chrome(executable_path=r'/Users/kevin/Desktop/chromedriver')
-    driver.get("https://www.nserc-crsng.gc.ca/ase-oro/Results-Resultats_eng.asp")
 
-    # ----------------------------------------
-    # ********* ENTER SEARCH CRITERIA ********
+    awardIDs=[]
+    projTitles=[]
+    amounts=[]
+    programs=[]
+    committees=[]
+    coResearchers=[]
+    compYears=[]
+    fiscalYears=[]
+    projLeads=[]
+    schools=[]
+    depts=[]
+    provs=[]
+    instals=[]
+    researchSubs=[]
+    areaApps=[]
+    partners=[]
 
-    # Change CSS style off dropdown to make it visible and then select competition year range
-    driver.execute_script("document.getElementById('competitionyearfrom').style.display = 'block';")
-    Select(driver.find_element_by_css_selector('select#competitionyearfrom')).select_by_value(str(year))
-
-    time.sleep(5)
-
-    driver.execute_script("document.getElementById('competitionyearto').style.display = 'block';")
-    Select(driver.find_element_by_css_selector('select#competitionyearto')).select_by_value(str(year))
-
-    # Change CSS style off dropdown to make it visible and set fiscal year range to blank
-    driver.execute_script("document.getElementById('fiscalyearfrom').style.display = 'block';")
-    Select(driver.find_element_by_css_selector('select#fiscalyearfrom')).select_by_value("0")
-
-    time.sleep(5)
-
-    driver.execute_script("document.getElementById('fiscalyearto').style.display = 'block';")
-    Select(driver.find_element_by_css_selector('select#fiscalyearto')).select_by_value("0")
-
-    # Change CSS style to make it visible and select area of application dropdown value
-    # ** NOTE: 703 = aerospace. You need to look up the values for each area.
-    #driver.execute_script("document.getElementById('AreaApplication').style.display = 'block';")
-    #Select(driver.find_element_by_css_selector('select#AreaApplication')).select_by_value("703")
-
-    # Launch your search criteria
-    driver.find_element_by_css_selector('#buttonSearch').click()
-    time.sleep(15)
-
-    # -------------------------------------------------
-    # ********* NOW ON THE SEARCH RESULTS PAGE ********
-
-    # Select 100 rows in the dropdown
-    Select(driver.find_element_by_name('result_length')).select_by_value("100")
-    time.sleep(20)
-
-    # Click on last button and go to last page
-    driver.find_element_by_css_selector('#result_last').click()
-    time.sleep(20)
-
-    # Get the number of pages by finding the value of the last page
-    pages = driver.find_element_by_css_selector('.paginate_active').get_attribute('innerHTML')
-    pages = int(pages)
-    time.sleep(20)
-
-    # Click on first button and go back to the first page
-    driver.find_element_by_css_selector('#result_first').click()
-    time.sleep(20)
-
-    # Establish variables for the while loop
-    nameList=[]
-    titleList=[]
-    linkList=[]
-    amountList=[]
-    yearList=[]
-    progList=[]
-    onPage=1
-
-    # while the current page number is <= the total number of pages
-    while onPage <= pages:
+    counter=1
+    for index,row in data.iterrows():
+        print(counter," row(s) out of ",len(data))
         
-        # Get lists containing values from each column
-        names = driver.find_elements_by_css_selector("table#result.display tr td:nth-child(1)")
-        titles = driver.find_elements_by_css_selector("table#result.display tr td:nth-child(2)")
-        links = driver.find_elements_by_css_selector("table#result.display tr td:nth-child(2) a")
-        amounts = driver.find_elements_by_css_selector("table#result.display tr td:nth-child(3)")
-        years = driver.find_elements_by_css_selector("table#result.display tr td:nth-child(4)")
-        progs = driver.find_elements_by_css_selector("table#result.display tr td:nth-child(5)")
+        html = requests.get(row["Link"])
+        webpage = html.text
 
-        # Iterate through column lists and retrieve data
-        for name in names:
-            nameList.append(name.text)
+        indexstart = webpage.index('class="researchDetails"')
+        indexend = webpage.index('</table>')
+        details = webpage[indexstart:indexend]
 
-        for title in titles:
-            titleList.append(title.text)
+        compy = details[details.index('<strong>Competition Year:'):]
+        compy = compy[compy.index('<td>'):]
+        compy = compy[compy.index('<td>'):compy.index('</td>')]
+        compy = cleanTXT(compy)
+        compYears.append(compy)
 
-        for link in links:
-            linkList.append(link.get_attribute("href"))
+        fiscal = details[details.index('<strong>Fiscal Year:'):]
+        fiscal = fiscal[fiscal.index('<td>'):]
+        fiscal = fiscal[fiscal.index('<td>'):fiscal.index('</td>')]
+        fiscal = cleanTXT(fiscal)
+        fiscalYears.append(fiscal)
 
-        for amount in amounts:
-            amountList.append(amount.text)
+        lead = details[details.index('<strong>Project Lead Name:'):]
+        lead = lead[lead.index('<td>'):]
+        lead = lead[lead.index('<td>'):lead.index('</td>')]
+        lead = cleanTXT(lead)
+        projLeads.append(lead)
 
-        for year in years:
-            yearList.append(year.text)
+        school = details[details.index('<strong>Institution:'):]
+        school = school[school.index('<td>'):]
+        school = school[school.index('<td>'):school.index('</td>')]
+        school = cleanTXT(school)
+        schools.append(school)
 
-        for prog in progs:
-            progList.append(prog.text)
+        dept = details[details.index('<strong>Department:'):]
+        dept = dept[dept.index('<td>'):]
+        dept = dept[dept.index('<td>'):dept.index('</td>')]
+        dept = cleanTXT(dept)
+        depts.append(dept)
 
-        # Click on next page button, let it load, and then add to the counter
-        driver.find_element_by_css_selector('#result_next').click()
-        time.sleep(20)
-        onPage+=1
+        prov = details[details.index('<strong>Province:'):]
+        prov = prov[prov.index('<td>'):]
+        prov = prov[prov.index('<td>'):prov.index('</td>')]
+        prov = cleanTXT(prov)
+        provs.append(prov)
 
-    # After loop is finished quit chrome, create dataframe, and export it
-    time.sleep(15)
-    driver.quit()
+        amount = details[details.index('<strong>Award Amount:'):]
+        amount = amount[amount.index('<td>'):]
+        amount = amount[amount.index('<td>'):amount.index('</td>')]
+        amount = cleanTXT(amount)
+        amounts.append(amount)
 
-    nsercLinks = pd.DataFrame(
-        {'Name': nameList,
-         'Title': titleList,
-         'Link': linkList,
-         'Amount': amountList,
-         'Year': yearList,
-         'Program': progList,
-         }
+        instal = details[details.index('<strong>Installment:'):]
+        instal = instal[instal.index('<td>'):]
+        instal = instal[instal.index('<td>'):instal.index('</td>')]
+        instal = cleanTXT(instal)
+        instals.append(instal)
+
+        prog = details[details.index('<strong>Program:'):]
+        prog = prog[prog.index('<td>'):]
+        prog = prog[prog.index('<td>'):prog.index('</td>')]
+        prog = cleanTXT(prog)
+        programs.append(prog)
+
+        comm = details[details.index('<strong>Selection Committee:'):]
+        comm = comm[comm.index('<td>'):]
+        comm = comm[comm.index('<td>'):comm.index('</td>')]
+        comm = cleanTXT(comm)
+        committees.append(comm)
+
+        sub = details[details.index('<strong>Research Subject:'):]
+        sub = sub[sub.index('<td>'):]
+        sub = sub[sub.index('<td>'):sub.index('</td>')]
+        sub = cleanTXT(sub)
+        researchSubs.append(sub)
+
+        area = details[details.index('<strong>Area of Application:'):]
+        area = area[area.index('<td>'):]
+        area = area[area.index('<td>'):area.index('</td>')]
+        area = cleanTXT(area)
+        areaApps.append(area)
+
+        partner = details[details.index('<strong>Partners:'):]
+        partner = partner[partner.index('<td>'):]
+        partner = partner[partner.index('<td>'):partner.index('</td>')]
+        partner = cleanTXT(partner)
+        partners.append(partner.replace('<br />',','))
+
+        co_research = details[details.index('<strong>Co-Researchers:'):]
+        co_research = co_research[co_research.index('<td>'):]
+        co_research = co_research[co_research.index('<td>'):co_research.index('</td>')]
+        co_research = cleanTXT(co_research)
+        coResearchers.append(co_research.replace('<br />',','))
+
+        awardID = row['Link'][row['Link'].index('id='):]
+        awardID = awardID.replace('id=','')
+        awardIDs.append(awardID)
+
+        projTitle = webpage[webpage.index('main-container-1col'):]
+        projTitle = projTitle[projTitle.index('<h2>'):projTitle.index('</h2>')]
+        projTitle = cleanTXT(projTitle)
+        projTitles.append(projTitle)
+
+            
+        counter+=1
+
+    nserc = pd.DataFrame(
+        {'Award ID': awardIDs,
+         'Competition Year': compYears,
+         'Fiscal Year': fiscalYears,
+         'Program': programs,
+         'Selection Committee': committees,
+         'Amount': amounts,
+         'Installment': instals,
+         'Research Subject': researchSubs,
+         'Area of Application': areaApps,
+         'Project Title': projTitles,
+         'Project Lead Name': projLeads,
+         'Co-Researchers': coResearchers,
+         'Institution': schools,
+         'Department': depts,
+         'Province': provs,
+         'Partners': partners
+        }
     )
 
-    nsercLinks.to_excel(writer,sheet_name='Award Summary Links',index=False)
+    nserc.to_excel(writer,sheet_name='Award Summaries',index=False)
     writer.save()
 
-
-year = input("Enter the grant year you want to extract : ")
-collectLinks(year)
+year = input("Enter the grant year of the file you want to open : ")
+extractDetails(year)
 
 contin='y'
 while contin == 'y':
@@ -145,9 +181,5 @@ while contin == 'y':
     if again in ["N","n"]:
         contin = "n"
     elif again in ["Y","y"]:
-        year = input("Enter the grant year you want to extract : ")
-        collectLinks(year)
-        
-    
-    
-
+        year = input("Enter the grant year of the file you want to open : ")
+        extractDetails(year)
