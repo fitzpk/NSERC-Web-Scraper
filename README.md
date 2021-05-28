@@ -7,6 +7,8 @@ cleaner.py is used to further process the webscraped data into an analysis-ready
 
 
 
+
+
 # Shanghai Rankings Web Scraper
 Python scripts that utilizes the Selenium library (https://selenium-python.readthedocs.io/) to interact with Shanghai Rankings website (https://www.shanghairanking.com/) and web scrape selected datasets.
 
