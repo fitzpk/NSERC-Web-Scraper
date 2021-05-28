@@ -6,9 +6,8 @@ webscraper.py is used to set the filters for NSERC's public database and iterate
 cleaner.py is used to further process the webscraped data into an analysis-ready dataset. 
 
 
+<br>
 
-
-  
 # Shanghai Rankings Web Scraper
 Python scripts that utilizes the Selenium library (https://selenium-python.readthedocs.io/) to interact with Shanghai Rankings website (https://www.shanghairanking.com/) and web scrape selected datasets.
 
