@@ -20,3 +20,9 @@ Shanghai_Webscraper.py is used the iterate through each subject in a selected ye
 Utilizes the Selenium library (https://selenium-python.readthedocs.io/) to interact with Score Golf website (https://scoregolf.com/) and web scrape their golf course guide of all canadian courses.
 
 ScoreGolf_Webscraper.py is used the iterate through each region in Canada and retrieve detailed information about each golf course listed in the database. Output file provided was generated using the database as of June 1st 2021.
+
+<br>
+
+# NHL Trades Web Scraper
+Utilizes the Selenium library (https://selenium-python.readthedocs.io/) to interact with the NHL trade tracker website (http://www.nhltradetracker.com/) and web scrape trades data by year.
+
